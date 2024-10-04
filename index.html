@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebSocket Client Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f2f5;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #0658F6;
+      color: white;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    header h1 {
+      margin: 0;
+    }
+    .content {
+      padding: 20px;
+      max-width: 1200px;
+      margin: auto;
+    }
+    .server-details {
+      display: flex;
+      justify-content: space-between;
+      background-color: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+    .server-details div {
+      display: flex;
+      flex-direction: column;
+    }
+    .server-details button {
+      padding: 10px 20px;
+      border: none;
+      background-color: #0658F6;
+      color: white;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background-color 0.3s ease;
+    }
+    .server-details button:hover {
+      background-color: #0047c2;
+    }
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .client {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      width: 200px;
+    }
+    .client img {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #0658F6;
+    }
+    .client span {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #0658F6;
+    }
+    .logs {
+      background-color: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      margin-top: 20px;
+    }
+    .logs pre {
+      background-color: #f4f4f4;
+      padding: 10px;
+      border-radius: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .copy-info {
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>WebSocket Client Dashboard</h1>
+  </header>
+
+  <div class="content">
+    <!-- Server Details -->
+    <div class="server-details">
+      <div>
+        <strong>WebSocket URL:</strong>
+        <span id="websocketUrl"></span>
+      </div>
+      <div>
+        <strong>Port:</strong>
+        <span id="websocketPort"></span>
+      </div>
+      <div>
+        <button id="copyUrlButton">Copy WebSocket URL</button>
+      </div>
+    </div>
+
+    <!-- Connected Clients -->
+    <h2>Connected Clients</h2>
+    <div class="container" id="clientsContainer"></div>
+
+    <!-- Logs -->
+    <h2>Action Logs</h2>
+    <div class="logs">
+      <pre id="logOutput">Waiting for WebSocket actions...</pre>
+    </div>
+  </div>
+
+  <script>
+    const wsUrl = `wss://${window.location.host}`;
+    const wsPort = window.location.port || 8080;
+
+    const ws = new WebSocket(wsUrl);
+
+    const clientsContainer = document.getElementById('clientsContainer');
+    const clients = {};
+    const logOutput = document.getElementById('logOutput');
+    const websocketUrl = document.getElementById('websocketUrl');
+    const websocketPort = document.getElementById('websocketPort');
+
+    websocketUrl.textContent = wsUrl;
+    websocketPort.textContent = wsPort;
+
+    function logAction(action) {
+      logOutput.textContent += `${action}\n`;
+      logOutput.scrollTop = logOutput.scrollHeight;
+    }
+
+    ws.onopen = () => {
+      logAction('Connected to WebSocket server');
+    };
+
+    ws.onmessage = (event) => {
+  if (event.data instanceof Blob) {
+    // Convert Blob to text
+    event.data.text().then(text => {
+      try {
+        const data = JSON.parse(text); // Parse the JSON text
+        const { clientId, clientLogo, message } = data;
+
+        // If the client is not already in the list, add them
+        if (!clients[clientId]) {
+          const clientElement = document.createElement('div');
+          clientElement.classList.add('client');
+          clientElement.id = `client-${clientId}`;
+
+          const img = document.createElement('img');
+          img.src = clientLogo;
+          img.alt = `Client ${clientId} Logo`;
+
+          const name = document.createElement('span');
+          name.textContent = `Client ${clientId}`;
+
+          clientElement.appendChild(img);
+          clientElement.appendChild(name);
+          clientsContainer.appendChild(clientElement);
+
+          clients[clientId] = clientElement;
+        }
+
+        logAction(`Client ${clientId} connected. Message: ${message}`);
+      } catch (error) {
+        console.error('Error parsing JSON from Blob:', error);
+        logAction('Error parsing JSON from Blob');
+      }
+    }).catch(error => {
+      console.error('Error converting Blob to text:', error);
+      logAction('Error converting Blob to text');
+    });
+  } else {
+    try {
+      const data = JSON.parse(event.data); // Directly parse if not a Blob
+      const { clientId, clientLogo, message } = data;
+
+      // Handle client connection (as shown in previous examples)
+      if (!clients[clientId]) {
+        const clientElement = document.createElement('div');
+        clientElement.classList.add('client');
+        clientElement.id = `client-${clientId}`;
+
+        const img = document.createElement('img');
+        img.src = clientLogo;
+        img.alt = `Client ${clientId} Logo`;
+
+        const name = document.createElement('span');
+        name.textContent = `Client ${clientId}`;
+
+        clientElement.appendChild(img);
+        clientElement.appendChild(name);
+        clientsContainer.appendChild(clientElement);
+
+        clients[clientId] = clientElement;
+      }
+
+      logAction(`Client ${clientId} connected. Message: ${message}`);
+    } catch (error) {
+      console.error('Error parsing JSON:', error);
+    }
+  }
+};
+
+
+
+    ws.onclose = () => {
+      logAction('WebSocket connection closed');
+    };
+
+    ws.onerror = (error) => {
+      logAction(`WebSocket error: ${error}`);
+    };
+
+    // Copy WebSocket URL to clipboard
+    const copyUrlButton = document.getElementById('copyUrlButton');
+    copyUrlButton.addEventListener('click', () => {
+      navigator.clipboard.writeText(wsUrl).then(() => {
+        alert('WebSocket URL copied to clipboard!');
+      }).catch(err => {
+        console.error('Error copying URL:', err);
+      });
+    });
+  </script>
+</body>
+</html>
